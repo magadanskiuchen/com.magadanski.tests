@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8" />
+		<title>com.magadanski.core package tests</title>
+		
+		<script src="../core/core.js"></script>
+		<script src="../core/utils.js"></script>
+		<script src="../core/EventDispatcher.js"></script>
+		<script src="../core/Address.js"></script>
+		<script src="../core/Exception.js"></script>
+		<script src="../core/TypeException.js"></script>
+		<script src="../core/App.js"></script>
+		<script src="../core/DOMCollection.js"></script>
+		
+		<link rel="stylesheet" href="//code.jquery.com/qunit/qunit-1.21.0.css" />
+		<script src="//code.jquery.com/qunit/qunit-1.21.0.js"></script>
+		<script>
+		// preparation for App unit testing -- needs to be instantiated before DOMContentLoaded and window.load events
+		var App = inc('com.magadanski.core.App', true);
+		var myApp = new App();
+		myApp.addEventListener('init', function (e) {
+			e.currentTarget.initFired = true;
+		});
+		
+		myApp.addEventListener('load', function (e) {
+			e.currentTarget.loadFired = true;
+		});
+
+		QUnit.test('core.js', function (assert) {
+			QUnit.module('pack');
+			
+				pack('com.magadanski.unit.core');
+				
+				var lowestPackageLevel = com.magadanski.unit.core;
+				var lowestPackageLevelType = typeof(lowestPackageLevel);
+				
+				assert.equal(lowestPackageLevelType, 'object', 'package is created');
+				assert.deepEqual(lowestPackageLevel, {}, 'package is an empty element');
+			
+			QUnit.module('define');
+			
+				function testDefinition() {
+					var that = this;
+				}
+				
+				define('com.magadanski.unit.core.TestDefinitionClass', function () {
+					var that;
+					var TestDefinitionClass = testDefinition;
+					
+					com.magadanski.unit.core.TestDefinitionClass = TestDefinitionClass;
+				});
+				
+				assert.deepEqual(com.magadanski.unit.core.TestDefinitionClass, testDefinition, 'class is properly defined with callback function');
+			
+			QUnit.module('inc');
+			
+				inc('com.magadanski.unit.core');
+				var localTestDefinitionClass = inc('com.magadanski.unit.core.TestDefinitionClass', true);
+				
+				assert.deepEqual(core, com.magadanski.unit.core, 'package is included as global variable');
+				assert.deepEqual(localTestDefinitionClass, com.magadanski.unit.core.TestDefinitionClass, 'package is included as a local variable');
+		});
+		
+		QUnit.test('utils.js', function (assert) {
+			QUnit.module('getFullHeight');
+			
+				var myDiv = document.createElement('div');
+				myDiv.id = 'myDiv';
+				myDiv.style.height = '10px';
+				
+				document.body.appendChild(myDiv);
+				var initialHeight = com.magadanski.utils.getFullHeight(myDiv);
+				
+				myDiv.style.marginBottom = '10px';
+				var marginHeight = com.magadanski.utils.getFullHeight(myDiv);
+				
+				myDiv.style.paddingBottom = '10px';
+				var marginPaddingHeight = com.magadanski.utils.getFullHeight(myDiv);
+				
+				myDiv.style.marginBottom = 0;
+				var paddingHeight = com.magadanski.utils.getFullHeight(myDiv);
+				
+				myDiv.remove();
+				
+				assert.equal(initialHeight, 10, 'initial height');
+				assert.equal(marginHeight, 20, 'height with margin');
+				assert.equal(marginPaddingHeight, 30, 'height with margin and padding');
+				assert.equal(paddingHeight, 20, 'height with padding');
+			
+			QUnit.module('extendOptions');
+			
+				var defaults = { id: 1, title: 'name', random: true };
+				var extendedOptions = com.magadanski.utils.extendOptions(defaults, { title: 'custom' });
+				var optionsWithAdditionalProperty = com.magadanski.utils.extendOptions(defaults, { newOne: 5 });
+				var extendedOptionsWithAdditionalProperty = com.magadanski.utils.extendOptions(extendedOptions, { newOne: 5 });
+				
+				assert.deepEqual(extendedOptions, { id: 1, title: 'custom', random: true }, 'options extend default values');
+				assert.deepEqual(optionsWithAdditionalProperty, { id: 1, title: 'name', random: true, newOne: 5 }, 'options are instantiated with initial values and new properties');
+				assert.deepEqual(extendedOptionsWithAdditionalProperty, { id: 1, title: 'custom', random: true, newOne: 5 }, 'options extend default values and new properties are also added');
+		});
+		
+		QUnit.test('EventDispatcher.js', function (assert) {
+			QUnit.module('EventDispatcher');
+			
+				var EventDispatcher = inc('com.magadanski.core.EventDispatcher', true);
+				var myEventDispatcher = new EventDispatcher();
+				var initAssert = assert.async();
+				var complexEventAssert = assert.async();
+				
+				var toBeRemovedCallback = function (e) {
+					assert.equal('event listener to be removed', 'still present', 'callback that is to be removed is still triggered');
+				};
+				
+				var secondToBeRemovedCallback = function (e) {
+					toBeRemovedCallback(e);
+				}
+				
+				myEventDispatcher.addEventListener('init', function (e) {
+					assert.equal(e.type, 'init', 'event type');
+					assert.deepEqual(e.currentTarget, myEventDispatcher, 'event current target');
+					initAssert();
+				});
+				
+				myEventDispatcher.addEventListener('complexEvent', function (e) {
+					assert.equal(e.myProperty, true, 'event custom bool property');
+					assert.equal(e.myIntProperty, 5, 'event custom int property');
+					complexEventAssert();
+				});
+				
+				myEventDispatcher.addEventListener('one, two three', function (e) {});
+				assert.deepEqual(typeof(myEventDispatcher.events.one), 'object', 'first type for multitype event listener assignment');
+				assert.deepEqual(typeof(myEventDispatcher.events.two), 'object', 'second type for multitype event listener assignment');
+				assert.deepEqual(typeof(myEventDispatcher.events.three), 'object', 'third type for multitype event listener assignment');
+				
+				myEventDispatcher.addEventListener('toBeRemoved', toBeRemovedCallback);
+				myEventDispatcher.removeEventListener('toBeRemoved', toBeRemovedCallback);
+				assert.deepEqual(myEventDispatcher.events.toBeRemoved, [], 'certain event listener is removed');
+				
+				myEventDispatcher.addEventListener('toBeRemoved', secondToBeRemovedCallback);
+				myEventDispatcher.removeEventListener('toBeRemoved');
+				
+				assert.deepEqual(myEventDispatcher.events.toBeRemoved, [], 'all event listeners for type are removed');
+				
+				myEventDispatcher.dispatchEvent('init', {});
+				myEventDispatcher.dispatchEvent('complexEvent', { myProperty: true, myIntProperty: 5 });
+				myEventDispatcher.dispatchEvent('toBeRemovedCallback', {});
+		});
+		
+		QUnit.test('Address.js', function (assert) {
+			QUnit.module('Address');
+			
+				var Address = inc('com.magadanski.core.Address', true);
+				var rootAddress = window.location.pathname.replace(/\/[^\/]*$/, '/');
+				var myAddress = new Address(rootAddress);
+				var initialPathname = window.location.pathname;
+				
+				myAddress.setHash('/address-test', 'com.magadanski.core package tests: Address Test', { stateType: 'new' });
+				
+				assert.equal(window.location.pathname.replace(rootAddress, ''), '/address-test', 'set hash');
+				assert.equal(myAddress.getHash(), '/address-test', 'get hash');
+				assert.deepEqual(myAddress.getState(), { stateType: 'new' });
+				
+				myAddress.setHash(initialPathname, 'com.magadanski.core package tests', {});
+		});
+		
+		QUnit.test('Exception.js', function (assert) {
+			QUnit.module('Exception');
+			
+				var Exception = inc('com.magadanski.exceptions.Exception', true);
+				
+				try {
+					throw(new Exception('Message'));
+				} catch (ex) {
+					assert.equal(ex.message, 'Message', 'exception message');
+				}
+		});
+		
+		QUnit.test('TypeException.js', function (assert) {
+			QUnit.module('TypeException');
+			
+				var TypeException = inc('com.magadanski.exceptions.TypeException', true);
+				
+				try {
+					throw(new TypeException('Message'));
+				} catch (ex) {
+					assert.equal(ex.message, 'Message', 'exception message');
+					assert.equal(ex instanceof TypeException, true, 'exception type');
+				}
+		});
+		
+		QUnit.test('App.js', function (assert) {
+			QUnit.module('App');
+			
+				assert.equal(myApp.initFired, true, 'init event fired');
+				assert.equal(myApp.loadFired, true, 'load event fired');
+		});
+		
+		QUnit.test('DOMCollection.js', function (assert) {
+			QUnit.module('DOMCollection');
+			
+				var myDiv = document.createElement('div');
+				myDiv.id = 'myDiv';
+				myDiv.innerHTML = '<ul><li><a href="#">List item 1</a></li><li><a href="#">List item 2</a></li><li><a href="#">List item 3</a></li></ul><p>Paragraph 1</p><p>Paragraph 2</p><p>Paragraph 3</p>';
+				document.body.appendChild(myDiv);
+				
+				var DOMCollection = inc('com.magadanski.core.DOMCollection', true);
+				var myDivChildrenCollection = new DOMCollection('#myDiv > *');
+				var ulCollection = myDivChildrenCollection.filter('ul');
+				var liCollection = ulCollection.find('li');
+				var aCollection = liCollection.find('a');
+				var pCollection = new DOMCollection('p', myDiv);
+				
+				assert.equal(myDivChildrenCollection.elements.length, 4, 'direct children of myDiv');
+				assert.equal(ulCollection.elements.length, 1, 'ul items from the myDivChildrenCollection');
+				assert.equal(liCollection.elements.length, 3, 'li items children of the ul');
+				assert.equal(aCollection.elements.length, 3, 'a items in the lis');
+				assert.equal(pCollection.elements.length, 3, 'p elements in the myDiv context');
+				
+				aCollection.addClass('link');
+				assert.equal(aCollection.elements[0].className, 'link', 'class for one of the links');
+				
+				aCollection.removeClass('link');
+				assert.equal(aCollection.elements[0].className, '', 'no classes for one of the links');
+				
+				aCollection.each(function (el, i) {
+					el.remove();
+				});
+				assert.equal(aCollection.elements[0].parentNode, null, 'links are removed from the DOM and they have no parents; still they are part of the collection');
+				
+				ulCollection.remove();
+				assert.equal(ulCollection.elements[0].parentNode, null, 'the whole list is removed from the DOM and they have no parents; still they are part of the collection');
+				
+				pCollection.css({ color: 'green' });
+				assert.equal(pCollection.elements[0].style.color, 'green', 'the color of one paragraph is green');
+				
+				myDiv.remove();
+		});
+		</script>
+	</head>
+	
+	<body>
+		<div id="qunit"></div>
+	</body>
+</html>
