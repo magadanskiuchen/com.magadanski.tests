@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8" />
+		<title>com.magadanski.fb package tests</title>
+		
+		<script src="../core/core.js"></script>
+		<script src="../core/utils.js"></script>
+		<script src="../core/EventDispatcher.js"></script>
+		<script src="../fb/Connect.js"></script>
+		
+		<link rel="stylesheet" href="//code.jquery.com/qunit/qunit-1.21.0.css" />
+		<script src="//code.jquery.com/qunit/qunit-1.21.0.js"></script>
+		<script>
+		QUnit.test('Connect.js', function (assert) {
+			QUnit.module('Connect');
+			
+				inc('com.magadanski.fb.Connect');
+				
+				var conn = new Connect(); // you need to pass some appId option in order for the test to run properly
+				
+				assert.equal(conn.getDomReady(), true, 'DOMContent should have loaded');
+				assert.equal(conn.getFbReady(), false, 'FB should not yet be loaded');
+				assert.equal(conn.getInitialized(), false, 'Connection is not yet initialized, as the FB SDK has not yet been loaded');
+				
+				var initAssert = assert.async();
+				var loginAssert = assert.async();
+				var apiAssert = assert.async();
+				
+				conn.addEventListener('fbReadyChanged', function (e) {
+					setTimeout(function () {
+						assert.equal(conn.getInitialized(), true, 'Connection should now be initialized');
+						initAssert();
+					});
+				});
+				
+				conn.addEventListener('login', function (e) {
+					assert.equal(e.response.status, 'connected', 'FB user is connected');
+					loginAssert();
+					
+					conn.api('/me?fields=id,email,name,installed', function (response) {
+						assert.equal(response.installed, true, 'the application should be authenticated to get to this point');
+						apiAssert();
+					});
+				});
+		});
+		
+		window.addEventListener('load', function () {
+			// FB JS SDK
+			(function(d, s, id){
+				var js, fjs = d.getElementsByTagName(s)[0];
+				if (d.getElementById(id)) {return;}
+				js = d.createElement(s); js.id = id;
+				js.src = "//connect.facebook.net/en_US/sdk.js";
+				fjs.parentNode.insertBefore(js, fjs);
+			}(document, 'script', 'facebook-jssdk'));
+		});
+		</script>
+	</head>
+	
+	<body>
+		<div id="qunit"></div>
+		<a href="#" class="login">Login</a>
+		<a href="#" class="logout">Logout</a>
+	</body>
+</html>
