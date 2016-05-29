@@ -17,7 +17,46 @@
 			
 				inc('com.magadanski.fb.Connect');
 				
-				var conn = new Connect(); // you need to pass some appId option in order for the test to run properly
+				var appId = '' // you need to pass some appId option in order for the test to run properly;
+				
+				if (appId == '') {
+					alert('you need to pass some appId option in order for the test to run properly');
+					return;
+				}
+				
+				var onConnectedCallbackAssert = assert.async();
+				var onConnectedAsserted = false;
+				
+				var onLogoutCallbackAssert = assert.async();
+				var onLogoutAsserted = false;
+				
+				var onNotAuthorizedCallbackAssert = assert.async();
+				var onNotAuthorizedAsserted = false;
+				
+				var conn = new Connect({
+					appId: appId,
+					onConnected: function (response) {
+						if (!onConnectedAsserted) {
+							onConnectedAsserted = true;
+							assert.equal(response.status, 'connected', 'onConnected callback fired');
+							onConnectedCallbackAssert();
+						}
+					},
+					onLogout: function (response) {
+						if (!onLogoutAsserted) {
+							onLogoutAsserted = true;
+							assert.equal(response.status, 'unknown', 'onLogout callback fired');
+							onLogoutCallbackAssert();
+						}
+					},
+					onNotAuthorized: function (response) {
+						if (!onNotAuthorizedAsserted) {
+							onNotAuthorizedAsserted = true;
+							assert.equal(response.status, 'unknown', 'onNotAuthorized callback fired');
+							onNotAuthorizedCallbackAssert();
+						}
+					}
+				});
 				
 				assert.equal(conn.getDomReady(), true, 'DOMContent should have loaded');
 				assert.equal(conn.getFbReady(), false, 'FB should not yet be loaded');
@@ -34,7 +73,7 @@
 					});
 				});
 				
-				conn.addEventListener('login', function (e) {
+				function onLogin(e) {
 					assert.equal(e.response.status, 'connected', 'FB user is connected');
 					loginAssert();
 					
@@ -42,18 +81,11 @@
 						assert.equal(response.installed, true, 'the application should be authenticated to get to this point');
 						apiAssert();
 					});
-				});
-		});
-		
-		window.addEventListener('load', function () {
-			// FB JS SDK
-			(function(d, s, id){
-				var js, fjs = d.getElementsByTagName(s)[0];
-				if (d.getElementById(id)) {return;}
-				js = d.createElement(s); js.id = id;
-				js.src = "//connect.facebook.net/en_US/sdk.js";
-				fjs.parentNode.insertBefore(js, fjs);
-			}(document, 'script', 'facebook-jssdk'));
+					
+					conn.removeEventListener('login', onLogin);
+				}
+				
+				conn.addEventListener('login', onLogin);
 		});
 		</script>
 	</head>
