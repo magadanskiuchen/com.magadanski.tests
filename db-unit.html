@@ -14,15 +14,51 @@
 		<script src="//code.jquery.com/qunit/qunit-1.21.0.js"></script>
 		<script>
 		inc('com.magadanski.db.DB');
-
-		QUnit.test('DB.js', function (assert) {
-			QUnit.module('DB');
+		
+		QUnit.test('DB Name', function (assert) {
+			QUnit.module('DB Name');
 				
 				try {
 					var myDB = new DB();
 				} catch (ex) {
 					assert.equal(ex.message, 'The "name" option is required for com.magadanski.db.DB', 'exception message');
 				}
+		});
+		
+		QUnit.test('DB Initialization', function (assert) {
+			QUnit.module('DB Initialization');
+				
+				assert.expect(5);
+				
+				var onCreatedCallbackAssert = assert.async();
+				
+				var myDB = new DB({
+					name: 'myTestDb',
+					description: 'This is just for Unit Test purposes',
+					size: '5MB',
+					onCreated: function (e) {
+						assert.ok(true, 'onCreatedCallbackAssert');
+						onCreatedCallbackAssert();
+					}
+				}, false);
+				
+				assert.equal(myDB.options.name, 'myTestDb', 'DB name');
+				assert.equal(myDB.options.version, '1.0', 'DB version (default value)');
+				assert.equal(myDB.options.description, 'This is just for Unit Test purposes', 'DB description');
+				assert.equal(myDB.calcSize(myDB.options.size), 5*1024*1024, 'DB size in bytes');
+				
+				myDB.open();
+		});
+		
+		QUnit.test('DB.calcSize', function (assert) {
+			QUnit.module('DB.calcSize');
+				
+				var myDB = new DB({ name: 'myTestDb' }, false);
+				
+				assert.equal(myDB.calcSize('1000'), 1000, 'Calc Size: pure byte test');
+				assert.equal(myDB.calcSize('1K'), 1024, 'Calc Size: kilobyte test');
+				assert.equal(myDB.calcSize('1M'), 1024*1024, 'Calc Size: megabyte test');
+				assert.equal(myDB.calcSize('1GB'), 1024*1024*1024, 'Calc Size: gigabyte test with trailing "B"');
 		});
 		</script>
 	</head>
