@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8" />
+		<title>com.magadanski.db package tests</title>
+		
+		<script src="../core/core.js"></script>
+		<script src="../core/utils.js"></script>
+		<script src="../core/EventDispatcher.js"></script>
+		<script src="../core/Exception.js"></script>
+		<script src="../db/DB.js"></script>
+		
+		<link rel="stylesheet" href="//code.jquery.com/qunit/qunit-1.21.0.css" />
+		<script src="//code.jquery.com/qunit/qunit-1.21.0.js"></script>
+		<script>
+		inc('com.magadanski.db.DB');
+
+		QUnit.test('DB.js', function (assert) {
+			QUnit.module('DB');
+				
+				try {
+					var myDB = new DB();
+				} catch (ex) {
+					assert.equal(ex.message, 'The "name" option is required for com.magadanski.db.DB', 'exception message');
+				}
+		});
+		</script>
+	</head>
+	
+	<body>
+		<div id="qunit"></div>
+	</body>
+</html>
